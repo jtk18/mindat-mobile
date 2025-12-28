@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Mindat Mobile</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #22c55e;
+            --error: #ef4444;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* API Key Setup Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 360px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+
+        .modal h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .modal p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .modal input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .modal button {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal button:active {
+            background: var(--primary-dark);
+        }
+
+        .modal .error {
+            color: var(--error);
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        .modal .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal .setting-row:last-child {
+            border-bottom: none;
+        }
+
+        .modal .setting-label {
+            font-size: 16px;
+        }
+
+        .modal .toggle-group {
+            display: flex;
+            background: var(--bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .modal .toggle-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .modal .toggle-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .modal .section-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+
+        .modal .btn-secondary {
+            background: var(--bg);
+            color: var(--text);
+            margin-top: 8px;
+        }
+
+        /* Main App Container */
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 12px 16px;
+            padding-top: calc(12px + var(--safe-top));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        /* Map Container */
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+
+        /* My Location Button */
+        .my-location-btn {
+            position: absolute;
+            bottom: 180px;
+            right: 16px;
+            width: 48px;
+            height: 48px;
+            background: var(--card-bg);
+            border: none;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-size: 22px;
+            cursor: pointer;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .my-location-btn:active {
+            background: var(--bg);
+        }
+
+        /* Bottom Panel */
+        .bottom-panel {
+            background: var(--card-bg);
+            padding: 16px;
+            padding-bottom: calc(16px + var(--safe-bottom));
+            border-top: 1px solid var(--border);
+            z-index: 1000;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .filter-row input, .filter-row select {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 16px;
+            background: var(--bg);
+        }
+
+        .filter-row select {
+            min-width: 100px;
+            flex: 0;
+        }
+
+        .search-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .search-btn:active {
+            background: var(--primary-dark);
+        }
+
+        .search-btn:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .status-bar {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 10px;
+        }
+
+        .status-bar.success {
+            color: var(--success);
+        }
+
+        .status-bar.error {
+            color: var(--error);
+        }
+
+        .load-more-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--card-bg);
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .load-more-btn:active {
+            background: var(--bg);
+        }
+
+        .load-more-btn.hidden {
+            display: none;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Center crosshair */
+        .center-crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1000;
+            font-size: 24px;
+            color: var(--primary);
+            text-shadow: 0 0 3px white, 0 0 3px white;
+        }
+
+        /* Leaflet popup customization */
+        .leaflet-popup-content {
+            margin: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .leaflet-popup-content strong {
+            font-size: 15px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .leaflet-popup-content a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- API Key Modal -->
+    <div id="api-modal" class="modal-overlay">
+        <div class="modal">
+            <h2>Welcome to Mindat Mobile</h2>
+            <p>Enter your Mindat API key to get started. You can get one at mindat.org</p>
+            <input type="text" id="api-key-input" placeholder="Your Mindat API Key">
+            <button id="save-key-btn">Get Started</button>
+            <div id="api-error" class="error"></div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>Settings</h2>
+            <div class="section-title">Units</div>
+            <div class="setting-row">
+                <span class="setting-label">Distance</span>
+                <div class="toggle-group">
+                    <button class="toggle-btn active" id="unit-mi">Miles</button>
+                    <button class="toggle-btn" id="unit-km">Km</button>
+                </div>
+            </div>
+            <div class="section-title">API Key</div>
+            <div class="setting-row">
+                <input type="text" id="settings-api-key" placeholder="Mindat API Key" style="margin-bottom: 0;">
+            </div>
+            <button id="save-settings-btn">Save Settings</button>
+            <button class="btn-secondary" id="close-settings-btn">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="app-container">
+        <header class="header">
+            <button class="header-btn" id="settings-btn">&#9881;</button>
+            <h1>Mindat Nearby</h1>
+            <div style="width: 36px;"></div>
+        </header>
+
+        <div id="map"></div>
+        <div class="center-crosshair">✛</div>
+
+        <button class="my-location-btn" id="my-location-btn">&#128205;</button>
+
+        <div class="bottom-panel">
+            <div class="filter-row">
+                <input type="text" id="mineral-filter" placeholder="Filter (e.g. Quartz, Cu, Mine)">
+                <select id="radius">
+                    <option value="16">10 mi</option>
+                    <option value="40">25 mi</option>
+                    <option value="80" selected>50 mi</option>
+                    <option value="160">100 mi</option>
+                    <option value="320">200 mi</option>
+                </select>
+            </div>
+            <button class="search-btn" id="search-btn">
+                <span>Search Nearby</span>
+            </button>
+            <div class="status-bar" id="status">Pan map and tap Search</div>
+            <button class="load-more-btn hidden" id="load-more-btn">Load More Results</button>
+        </div>
+    </div>
+
+    <script>
+        // Debug: log available Tauri APIs
+        console.log('Tauri API:', window.__TAURI__);
+        console.log('Available keys:', Object.keys(window.__TAURI__ || {}));
+
+        // Use global Tauri API (withGlobalTauri: true in config)
+        const { invoke } = window.__TAURI__.core;
+
+        // Geolocation plugin - try different possible namespaces
+        let checkPermissions, requestPermissions, getCurrentPosition;
+        if (window.__TAURI__.geolocation) {
+            ({ checkPermissions, requestPermissions, getCurrentPosition } = window.__TAURI__.geolocation);
+        } else if (window.__TAURI_PLUGIN_GEOLOCATION__) {
+            ({ checkPermissions, requestPermissions, getCurrentPosition } = window.__TAURI_PLUGIN_GEOLOCATION__);
+        } else {
+            console.error('Geolocation plugin not found! Available:', Object.keys(window.__TAURI__ || {}));
+            // Fallback to browser geolocation
+            checkPermissions = async () => ({ location: 'granted' });
+            requestPermissions = async () => ({ location: 'granted' });
+            getCurrentPosition = (opts) => new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, opts);
+            });
+        }
+
+        // State
+        let map = null;
+        let markersLayer = null;
+        let lastSearchParams = null;
+        let nextPageName = null;  // Track name search pagination
+        let nextPageElements = null;  // Track element search pagination
+        let useKm = false; // Default to miles
+
+        // Radius options in km (values stored as km)
+        const radiusOptions = {
+            mi: [
+                { value: 16, label: '10 mi' },
+                { value: 40, label: '25 mi' },
+                { value: 80, label: '50 mi' },
+                { value: 160, label: '100 mi' },
+                { value: 320, label: '200 mi' }
+            ],
+            km: [
+                { value: 10, label: '10 km' },
+                { value: 25, label: '25 km' },
+                { value: 50, label: '50 km' },
+                { value: 100, label: '100 km' },
+                { value: 200, label: '200 km' }
+            ]
+        };
+
+        // Common element symbols for dual search
+        const elementSymbols = ['H','He','Li','Be','B','C','N','O','F','Ne','Na','Mg','Al','Si','P','S','Cl','Ar','K','Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr','Rb','Sr','Y','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I','Xe','Cs','Ba','La','Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb','Lu','Hf','Ta','W','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn','Fr','Ra','Ac','Th','Pa','U','Np','Pu'];
+
+        // DOM Elements
+        const apiModal = document.getElementById('api-modal');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveKeyBtn = document.getElementById('save-key-btn');
+        const apiError = document.getElementById('api-error');
+        const mineralFilterInput = document.getElementById('mineral-filter');
+        const radiusSelect = document.getElementById('radius');
+        const searchBtn = document.getElementById('search-btn');
+        const myLocationBtn = document.getElementById('my-location-btn');
+        const status = document.getElementById('status');
+        const settingsBtn = document.getElementById('settings-btn');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const unitMiBtn = document.getElementById('unit-mi');
+        const unitKmBtn = document.getElementById('unit-km');
+        const settingsApiKey = document.getElementById('settings-api-key');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+
+        // Initialize map
+        function initMap() {
+            // Default to center of USA
+            map = L.map('map').setView([39.8283, -98.5795], 4);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+
+            markersLayer = L.featureGroup().addTo(map);
+        }
+
+        // Load settings from localStorage
+        function loadSettings() {
+            const saved = localStorage.getItem('mindat-settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                useKm = settings.useKm || false;
+            }
+            updateUnitButtons();
+            updateRadiusOptions();
+        }
+
+        // Save settings to localStorage
+        function saveSettings() {
+            localStorage.setItem('mindat-settings', JSON.stringify({ useKm }));
+        }
+
+        // Update unit toggle buttons
+        function updateUnitButtons() {
+            if (useKm) {
+                unitKmBtn.classList.add('active');
+                unitMiBtn.classList.remove('active');
+            } else {
+                unitMiBtn.classList.add('active');
+                unitKmBtn.classList.remove('active');
+            }
+        }
+
+        // Update radius dropdown options
+        function updateRadiusOptions() {
+            const currentValue = parseInt(radiusSelect.value);
+            const options = useKm ? radiusOptions.km : radiusOptions.mi;
+            radiusSelect.innerHTML = '';
+
+            options.forEach((opt, idx) => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.label;
+                // Select 3rd option (50 mi/km) by default or closest to current
+                if (idx === 2) option.selected = true;
+                radiusSelect.appendChild(option);
+            });
+        }
+
+        // Parse search term for elements and name filter
+        // Elements go ONLY to element search, non-elements go ONLY to name search
+        function parseSearchTerm(term) {
+            if (!term) return { nameFilter: null, elementsFilter: null };
+
+            const parts = term.split(/[\s,]+/).filter(p => p.length > 0);
+            const elements = [];
+            const nameParts = [];
+
+            parts.forEach(part => {
+                // Check if it's an element symbol (1-2 chars, case-insensitive)
+                const normalized = part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+                const upper = part.toUpperCase();
+
+                // Only treat as element if it's 1-2 characters AND matches an element symbol
+                if (part.length <= 2 && (elementSymbols.includes(normalized) || elementSymbols.includes(upper))) {
+                    elements.push(normalized);
+                } else {
+                    // Not an element - add to name search
+                    nameParts.push(part);
+                }
+            });
+
+            return {
+                nameFilter: nameParts.length > 0 ? nameParts.join(' ') : null,
+                elementsFilter: elements.length > 0 ? elements.join(',') : null
+            };
+        }
+
+        // Reverse geocode to get state from coordinates
+        async function getStateFromCoords(lat, lon) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
+                    { headers: { 'User-Agent': 'MindatMobile/1.0' } }
+                );
+                const data = await response.json();
+                // Return state abbreviation or full name
+                const state = data.address?.state;
+                if (state) {
+                    console.log('Detected state:', state);
+                    return state;
+                }
+            } catch (e) {
+                console.error('Reverse geocoding failed:', e);
+            }
+            return null;
+        }
+
+        // Map state names to Mindat country codes (USA states use full names)
+        // Mindat uses "USA" as country but we can add state to txt filter
+        let detectedState = null;
+
+        // Update status
+        function setStatus(msg, type = '') {
+            status.textContent = msg;
+            status.className = 'status-bar' + (type ? ' ' + type : '');
+        }
+
+        // Get user's location and center map
+        async function getMyLocation() {
+            setStatus('Getting your location...');
+
+            try {
+                // Check permissions
+                const perms = await checkPermissions();
+                if (perms.location !== 'granted') {
+                    const result = await requestPermissions(['location']);
+                    if (result.location !== 'granted') {
+                        setStatus('Location permission denied', 'error');
+                        return;
+                    }
+                }
+
+                // Get position
+                const pos = await getCurrentPosition({
+                    enableHighAccuracy: true,
+                    timeout: 30000,
+                    maximumAge: 0
+                });
+
+                // Center map on user's location (no marker)
+                map.setView([pos.coords.latitude, pos.coords.longitude], 10);
+
+                // Detect state from coordinates
+                setStatus('Detecting location...');
+                detectedState = await getStateFromCoords(pos.coords.latitude, pos.coords.longitude);
+                if (detectedState) {
+                    setStatus(`Located in ${detectedState}. Tap Search.`);
+                } else {
+                    setStatus('Pan map or tap Search');
+                }
+            } catch (e) {
+                console.error('Location error:', e);
+                setStatus('Location error: ' + (e.message || JSON.stringify(e)), 'error');
+            }
+        }
+
+        // Search for localities using map center
+        async function searchNearby(isLoadMore = false) {
+            // Get the center of the current map view
+            const center = map.getCenter();
+            const searchTerm = mineralFilterInput.value.trim();
+            const { nameFilter, elementsFilter } = parseSearchTerm(searchTerm);
+            const radiusKm = parseInt(radiusSelect.value);
+
+            // Update UI
+            if (isLoadMore) {
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.textContent = 'Loading...';
+            } else {
+                searchBtn.disabled = true;
+                searchBtn.innerHTML = '<div class="spinner"></div><span>Searching...</span>';
+                loadMoreBtn.classList.add('hidden');
+                // Clear old markers for new search
+                markersLayer.clearLayers();
+            }
+
+            try {
+                // Detect state from map center (not GPS) for accuracy
+                let stateForSearch = detectedState;
+                if (!isLoadMore) {
+                    setStatus('Detecting state...');
+                    const mapState = await getStateFromCoords(center.lat, center.lng);
+                    if (mapState) {
+                        stateForSearch = mapState;
+                        detectedState = mapState;
+                    }
+                }
+
+                setStatus(stateForSearch ? `Searching in ${stateForSearch}...` : 'Searching for localities...');
+
+                // Store search params for "load more"
+                if (!isLoadMore) {
+                    lastSearchParams = {
+                        latitude: center.lat,
+                        longitude: center.lng,
+                        radiusKm: radiusKm,
+                        nameFilter: nameFilter,
+                        elementsFilter: elementsFilter,
+                        state: stateForSearch
+                    };
+                    nextPageName = null;
+                    nextPageElements = null;
+                }
+
+                const params = lastSearchParams || {
+                    latitude: center.lat,
+                    longitude: center.lng,
+                    radiusKm: radiusKm,
+                    nameFilter: nameFilter,
+                    elementsFilter: elementsFilter,
+                    state: stateForSearch
+                };
+
+                // Don't combine state with name filter - it makes searches too restrictive
+                // "Arizona Copper" won't match "Copper Queen Mine, Arizona, USA"
+                // Just use the name filter as-is, or state if no search term
+                let combinedNameFilter = params.nameFilter;
+                if (!params.nameFilter && !params.elementsFilter && params.state) {
+                    // No search term at all - use state as the name filter
+                    combinedNameFilter = params.state;
+                }
+                // For name searches or element searches, don't add state prefix
+
+                const result = await invoke('search_localities_nearby', {
+                    latitude: params.latitude,
+                    longitude: params.longitude,
+                    radiusKm: params.radiusKm,
+                    country: 'USA',
+                    nameContains: combinedNameFilter,
+                    elementsFilter: params.elementsFilter,
+                    startPageName: isLoadMore && nextPageName ? nextPageName : null,
+                    startPageElements: isLoadMore && nextPageElements ? nextPageElements : null,
+                    pagesToFetch: 30
+                });
+
+                console.log('Search params:', {
+                    nameContains: combinedNameFilter,
+                    elementsFilter: params.elementsFilter,
+                    state: params.state,
+                    radius: params.radiusKm
+                });
+                console.log('Search result:', {
+                    count: result.count,
+                    beforeFilter: result.beforeFilter,
+                    hasMore: result.hasMore,
+                    nextPageName: result.nextPageName,
+                    nextPageElements: result.nextPageElements
+                });
+
+                // Add markers
+                const localities = result.results || [];
+                localities.forEach(loc => {
+                    if (loc.latitude && loc.longitude) {
+                        const marker = L.marker([loc.latitude, loc.longitude])
+                            .bindPopup(`
+                                <strong>${escapeHtml(loc.txt || 'Unknown')}</strong>
+                                ${loc.country ? '<br>' + escapeHtml(loc.country) : ''}
+                                <br><small>${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}</small>
+                                <br><a href="https://www.mindat.org/loc-${loc.id}.html" target="_blank">View on Mindat</a>
+                            `);
+                        markersLayer.addLayer(marker);
+                    }
+                });
+
+                // Update pagination state
+                nextPageName = result.nextPageName || null;
+                nextPageElements = result.nextPageElements || null;
+                const hasMore = result.hasMore;
+
+                const totalCount = markersLayer.getLayers().length;
+                const newCount = localities.length;
+                const beforeFilter = result.beforeFilter || 0;
+                if (totalCount === 0) {
+                    setStatus(`No localities in radius (${beforeFilter} fetched)`, 'error');
+                    loadMoreBtn.classList.add('hidden');
+                } else if (hasMore) {
+                    const moreText = isLoadMore
+                        ? `+${newCount} more, ${totalCount} total (${beforeFilter} fetched, more pages)`
+                        : `Found ${totalCount} in radius (${beforeFilter} fetched, more pages)`;
+                    setStatus(moreText, 'success');
+                    loadMoreBtn.classList.remove('hidden');
+                } else {
+                    const doneText = isLoadMore
+                        ? `+${newCount} more, ${totalCount} total (${beforeFilter} fetched)`
+                        : `Found ${totalCount} (${beforeFilter} fetched)`;
+                    setStatus(doneText, 'success');
+                    loadMoreBtn.classList.add('hidden');
+                }
+
+                // Zoom to fit markers if any (only on first search)
+                if (!isLoadMore && totalCount > 0) {
+                    const bounds = markersLayer.getBounds();
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50] });
+                    }
+                }
+            } catch (e) {
+                console.error('Search error:', e);
+                setStatus('Search failed: ' + (e.message || e), 'error');
+                loadMoreBtn.classList.add('hidden');
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.innerHTML = '<span>Search Nearby</span>';
+                loadMoreBtn.disabled = false;
+                loadMoreBtn.textContent = 'Load More Results';
+            }
+        }
+
+        // Load more results
+        function loadMore() {
+            if (nextPageName || nextPageElements) {
+                searchNearby(true);
+            }
+        }
+
+        // Escape HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[m]);
+        }
+
+        // Save API key
+        async function saveApiKey() {
+            const key = apiKeyInput.value.trim();
+            if (!key) {
+                apiError.textContent = 'Please enter an API key';
+                return;
+            }
+
+            try {
+                await invoke('set_api_key', { key });
+                apiModal.classList.add('hidden');
+                setStatus('Pan map and tap Search');
+            } catch (e) {
+                apiError.textContent = 'Failed to save key: ' + (e.message || e);
+            }
+        }
+
+        // Check if configured
+        async function checkConfigured() {
+            try {
+                const configured = await invoke('is_configured');
+                if (configured) {
+                    apiModal.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error('Config check failed:', e);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            initMap();
+            loadSettings();
+            await checkConfigured();
+
+            // Auto-center on GPS location
+            getMyLocation();
+
+            // Event listeners
+            saveKeyBtn.addEventListener('click', saveApiKey);
+            apiKeyInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') saveApiKey();
+            });
+
+            myLocationBtn.addEventListener('click', getMyLocation);
+            searchBtn.addEventListener('click', () => searchNearby(false));
+            loadMoreBtn.addEventListener('click', loadMore);
+
+            // Settings button opens settings modal
+            settingsBtn.addEventListener('click', () => {
+                settingsModal.classList.remove('hidden');
+            });
+
+            // Unit toggle buttons
+            unitMiBtn.addEventListener('click', () => {
+                useKm = false;
+                updateUnitButtons();
+                updateRadiusOptions();
+            });
+
+            unitKmBtn.addEventListener('click', () => {
+                useKm = true;
+                updateUnitButtons();
+                updateRadiusOptions();
+            });
+
+            // Save settings
+            saveSettingsBtn.addEventListener('click', async () => {
+                // Save unit preference
+                saveSettings();
+
+                // Save API key if changed
+                const newKey = settingsApiKey.value.trim();
+                if (newKey) {
+                    try {
+                        await invoke('set_api_key', { key: newKey });
+                    } catch (e) {
+                        console.error('Failed to save API key:', e);
+                    }
+                }
+
+                settingsModal.classList.add('hidden');
+            });
+
+            // Close settings without saving
+            closeSettingsBtn.addEventListener('click', () => {
+                // Revert UI to saved state
+                loadSettings();
+                settingsModal.classList.add('hidden');
+            });
+
+            // Enter key to search
+            mineralFilterInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchNearby(false);
+            });
+        });
+    </script>
+</body>
+</html>

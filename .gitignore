@@ -1,0 +1,22 @@
+# Rust
+target/
+Cargo.lock
+
+# Node
+node_modules/
+dist/
+
+# Tauri generated
+src-tauri/gen/
+src-tauri/target/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Build artifacts
+*.log
