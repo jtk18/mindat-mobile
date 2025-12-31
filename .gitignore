@@ -20,3 +20,4 @@ src-tauri/target/
 
 # Build artifacts
 *.log
+src-tauri/gen/apple/Local.xcconfig
